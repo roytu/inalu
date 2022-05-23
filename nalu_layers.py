@@ -1,6 +1,6 @@
 
 import tensorflow as tf
-from nalu_utils import *
+from inalu.nalu_utils import *
 
 
 class Nalui2Layer(tf.keras.layers.Layer):
