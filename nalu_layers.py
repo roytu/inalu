@@ -4,8 +4,8 @@ from nalu_utils import *
 
 
 class Nalui2Layer(tf.keras.layers.Layer):
-    def __init__(self, num_outputs):
-        super(Nalui2Layer, self).__init__()
+    def __init__(self, num_outputs, name="Nalui2", **kwargs):
+        super(Nalui2Layer, self).__init__(name=name, **kwargs)
         self.num_outputs = num_outputs
 
     def build(self, input_shape):
