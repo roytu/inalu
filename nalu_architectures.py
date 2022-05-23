@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from nalu_layers import *
+from inalu.nalu_layers import *
 from tensorflow.keras import Model
 
 class INALUModel(Model):
