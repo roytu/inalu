@@ -62,6 +62,10 @@ class Nalui2Layer(tf.keras.layers.Layer):
         ms1 = tf.reduce_prod(sgn, axis=2)
         a1 = tf.matmul(inputs, self.W1)
         m1 = tf.exp(tf.minimum(tf.matmul(tf.math.log(tf.maximum(tf.abs(inputs), 1e-7)), self.W2), 20))  # clipping
-        out = self.g1 * a1 + (1 - self.g1) * m1 * tf.clip_by_value(ms1, -1, 1)
+        
+        out_add = self.g1 * a1
+        out_sgn = tf.clip_by_value(ms1, -1, 1)
+        out_mul = (1 - self.g1) * m1
+        out = out_add + out_mul * out_sgn
         return out
 
