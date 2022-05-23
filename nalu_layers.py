@@ -41,7 +41,7 @@ class Nalui2Layer(tf.keras.layers.Layer):
 
         G1 = self.add_weight(
                 "g",
-                shape=(input_shape[-1], self.num_outputs),
+                shape=(self.num_outputs,),
                 initializer=tf.keras.initializers.RandomNormal(
                     mean=0.0, stddev=0.2, seed=None
                     ),
@@ -61,6 +61,7 @@ class Nalui2Layer(tf.keras.layers.Layer):
         sgn = tf.reshape(sgn, shape=[-1, self.W1.shape[1], self.W1.shape[0]])
         ms1 = tf.reduce_prod(sgn, axis=2)
         a1 = tf.matmul(inputs, self.W1)
+
         m1 = tf.exp(tf.minimum(tf.matmul(tf.math.log(tf.maximum(tf.abs(inputs), 1e-7)), self.W2), 20))  # clipping
         
         out_add = self.g1 * a1
