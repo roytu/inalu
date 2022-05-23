@@ -18,8 +18,8 @@ class INALUModel(Sequential):
     return x
 
 if __name__ == "__main__":
-    x = np.random.uniform((52550, 10))
-    y = np.random.uniform((52550, 1))
+    x = np.random.uniform(size=(52550, 10))
+    y = np.random.uniform(size=(52550, 1))
 
     model = INALUModel()
     model.compile(
