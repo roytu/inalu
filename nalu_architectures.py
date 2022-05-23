@@ -1,10 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
-from inalu.nalu_layers import *
-from tensorflow.keras import Model
+from nalu_layers import *
+from tensorflow.keras import Model, Sequential
+from tensorflow.keras.layers import Dense
 
-class INALUModel(Model):
+class INALUModel(Sequential):
   def __init__(self):
     super(INALUModel, self).__init__()
 
@@ -17,16 +18,12 @@ class INALUModel(Model):
     return x
 
 if __name__ == "__main__":
-    x = np.random.uniform(100)
+    x = np.random.uniform((52550, 10))
+    y = np.random.uniform((52550, 1))
 
-    writer = tf.summary.create_file_writer("logs")
-
-    with writer.as_default():
-        model = INALUModel()
-        writer.add_graph(model, x)
-        writer.flush()
-
-    #with tf.Session() as sess:
-    #    writer = tf.summary.FileWriter("output", sess.graph)
-    #    print(sess.run(nn))
-    #    writer.close()
+    model = INALUModel()
+    model.compile(
+        optimizer="adam",
+        loss="mean_squared_error",
+        metrics=["mean_squared_error"])
+    model.fit(x, y, epochs=10)
