@@ -3,37 +3,28 @@ import tensorflow as tf
 
 from nalu_layers import *
 from tensorflow.keras import Model, Sequential, Input
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten
+from tensorflow.keras.layers import Conv1D, MaxPooling1D
 
 
 class INALUModel(Sequential):
-    def __init__(self, *args, **kwargs):
-        super(INALUModel, self).__init__(*args, **kwargs)
 
-        self.add(Nalui2Layer(2, name="hidden1"))
-        self.add(Nalui2Layer(1, name="hidden2"))
+    def compute_loss(self, x, y, y_pred, sample_weight):
+        loss = tf.reduce_mean(tf.math.squared_difference(y_pred, y))
+        loss += tf.add_n(self.losses)
+        self.loss_tracker.update_state(loss)
+        return loss
 
-    #def call(self, inputs, training=False, mask=None):
-    #    x = self.hidden1(inputs, training=training)
-    #    x = self.hidden2(x, training=training)
-
-    #    return x
-
-
-    def train_step(self, data):
-        x, y = data
-        # Run forward pass.
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)
-            loss = self.compute_loss(x, y, y_pred)
-        #self._validate_target_and_loss(y, loss)
-        # Run backwards pass.
-        print(self.trainable_variables)
-        print(tape.watched_variables())
-        import pdb; pdb.set_trace()
-        1/0
-        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-        return self.compute_metrics(x, y, y_pred, sample_weight)
+    #def train_step(self, data):
+    #    x, y = data
+    #    # Run forward pass.
+    #    with tf.GradientTape() as tape:
+    #        y_pred = self(x, training=True)
+    #        loss = self.compute_loss(x, y, y_pred)
+    #    #self._validate_target_and_loss(y, loss)
+    #    # Run backwards pass.
+    #    self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+    #    return self.compute_metrics(x, y, y_pred, sample_weight)
 
     #def train_step(self, data):
     #    x, y = data
@@ -58,19 +49,98 @@ class INALUModel(Sequential):
     #    return {m.name: m.result() for m in self.metrics}
 
 if __name__ == "__main__":
-    x = np.random.random(size=(52550, 10))
-    y = np.random.random(size=(52550, 1))
+
+    should_train = True
+
+    E_gnds = np.load("datasets/E_gnds.npy")
+    n_gnds = np.load("datasets/n_gnds.npy")
+
+    SAMPLES = 105100
+    k = 3
+
+    # Take the first 8 values only and expand to L+k-1 to
+    # reflect periodicity
+
+    n_gnds = n_gnds[:, :8]  # Use only spin-ups (should be the same as spin-downs)
+    n_gnds = np.hstack([n_gnds, n_gnds[:, :k-1]])
+    #n_gnds = np.expand_dims(n_gnds, axis=2)  # Reshape to fit with Conv1D
+    E_gnds = np.expand_dims(E_gnds, axis=1)
+
+    # Split into training and test
+    split_val = 0.50  # 0.50 = 50% training, 50% test
+    split_n = int(split_val * SAMPLES)
+
+    train_E_gnds = E_gnds[:split_n]
+    train_n_gnds = n_gnds[:split_n]
+    test_E_gnds = E_gnds[split_n:]
+    test_n_gnds = n_gnds[split_n:]
+
+    #x = np.random.random(size=(52550, 10))
+    #y = np.random.random(size=(52550, 1))
 
     #model = INALUModel()
-    model = Sequential([
-            Nalui2Layer(2, name="hidden1"),
-            Nalui2Layer(1, name="hidden2")
-            ])
+    model = Sequential()
+    #model.add(Conv1D(8, (3,), input_shape=(10, 1)))
+    #model.add(Activation("relu"))
+    model.add(Dense(128))
+    model.add(Activation("relu"))
+    model.add(Dense(128))
+    model.add(Activation("relu"))
+    model.add(Dense(1))
+    #model.add(Nalui2Layer(10, name="hidden1"))
+    #model.add(Nalui2Layer(10, name="hidden2"))
+    #model.add(Nalui2Layer(10, name="hidden3"))
+    #model.add(Nalui2Layer(10, name="hidden4"))
+    #model.add(Nalui2Layer(10, name="hidden5"))
+    #model.add(Nalui2Layer(1, name="output"))
+
     model.compile(
         optimizer="adam",
-        loss="mse",
-        metrics=["mae"])
+        loss="mean_squared_error",
+        metrics=["mean_squared_error"])
+    
+    logdir = "logs"
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
 
-    #model.build(x.shape)
-    model.fit(x, y, epochs=10)
-    model.summary()
+    if should_train:
+        #model.build(x.shape)
+        history = model.fit(train_n_gnds, train_E_gnds, epochs=5, callbacks=[tensorboard_callback])
+
+        # Test results
+        results = model.evaluate(test_n_gnds, test_E_gnds)
+
+        # Print metrics
+        print("=" * 20)
+        print("Metrics:")
+        for metric_name, result in zip(model.metrics_names, results):
+            print(f"\t{metric_name}: {result}")
+
+        # Save model
+        #model.save_weights("model_1cnn_2dense.ckpt")
+        #model.save_weights("model_2layer.ckpt")
+        model.summary()
+
+        # Algebraic representation
+        for i, layer in enumerate(model.layers):
+            print(f"Layer {i}:")
+            print(layer.get_algebraic_repr())
+
+    else:
+        model.build(n_gnds.shape)
+        model.load_weights("model_2layer.ckpt")
+        model.summary()
+
+        # Test results
+        results = model.evaluate(test_n_gnds, test_E_gnds)
+
+        # Print metrics
+        print("=" * 20)
+        print("Metrics:")
+        for metric_name, result in zip(model.metrics_names, results):
+            print(f"\t{metric_name}: {result}")
+
+        # Algebraic representation
+        for i, layer in enumerate(model.layers):
+            print(f"Layer {i}:")
+            print(layer.get_algebraic_repr())
+
