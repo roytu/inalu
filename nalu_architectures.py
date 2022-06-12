@@ -7,13 +7,35 @@ from tensorflow.keras.layers import Dense, Dropout, Activation, Flatten
 from tensorflow.keras.layers import Conv1D, MaxPooling1D
 
 
-class INALUModel(Sequential):
+class INALUModel(Model):
 
-    def compute_loss(self, x, y, y_pred, sample_weight):
-        loss = tf.reduce_mean(tf.math.squared_difference(y_pred, y))
-        loss += tf.add_n(self.losses)
-        self.loss_tracker.update_state(loss)
-        return loss
+    def __init__(self):
+        super(INALUModel, self).__init__()
+
+        #self.conv1_layer = Conv1D(8, (3,), input_shape=(10, 1), name="Conv1")
+        #self.flatten_layer = Flatten()
+        self.dense1_layer = Dense(128, activation="relu", name="Dense1")
+        self.dense2_layer = Dense(128, activation="relu", name="Dense2")
+        self.output_E_layer = Dense(1, name="OutE")
+        self.output_vs_layer = Dense(8, name="OutVs")
+
+    def call(self, inputs):
+        x = inputs
+
+        #x = self.conv1_layer(x)
+        #x = self.flatten_layer(x)
+        x = self.dense1_layer(x)
+        x = self.dense2_layer(x)
+        out_E = self.output_E_layer(x)
+        out_vs = self.output_vs_layer(x)
+
+        return out_E, out_vs
+
+    #def compute_loss(self, x, y, y_pred, sample_weight):
+    #    loss = tf.reduce_mean(tf.math.squared_difference(y_pred, y))
+    #    loss += tf.add_n(self.losses)
+    #    self.loss_tracker.update_state(loss)
+    #    return loss
 
     #def train_step(self, data):
     #    x, y = data
@@ -54,6 +76,7 @@ if __name__ == "__main__":
 
     E_gnds = np.load("datasets/E_gnds.npy")
     n_gnds = np.load("datasets/n_gnds.npy")
+    vs = np.load("datasets/vs.npy")
 
     SAMPLES = 105100
     k = 3
@@ -65,6 +88,7 @@ if __name__ == "__main__":
     n_gnds = np.hstack([n_gnds, n_gnds[:, :k-1]])
     #n_gnds = np.expand_dims(n_gnds, axis=2)  # Reshape to fit with Conv1D
     E_gnds = np.expand_dims(E_gnds, axis=1)
+    Evs = np.hstack([E_gnds, vs])
 
     # Split into training and test
     split_val = 0.50  # 0.50 = 50% training, 50% test
@@ -72,21 +96,23 @@ if __name__ == "__main__":
 
     train_E_gnds = E_gnds[:split_n]
     train_n_gnds = n_gnds[:split_n]
+    train_vs = vs[:split_n]
     test_E_gnds = E_gnds[split_n:]
     test_n_gnds = n_gnds[split_n:]
+    test_vs = vs[split_n:]
 
     #x = np.random.random(size=(52550, 10))
     #y = np.random.random(size=(52550, 1))
 
-    #model = INALUModel()
-    model = Sequential()
-    #model.add(Conv1D(8, (3,), input_shape=(10, 1)))
+    model = INALUModel()
+    #model = Sequential()
+    ##model.add(Conv1D(8, (3,), input_shape=(10, 1)))
+    ##model.add(Activation("relu"))
+    #model.add(Dense(128))
     #model.add(Activation("relu"))
-    model.add(Dense(128))
-    model.add(Activation("relu"))
-    model.add(Dense(128))
-    model.add(Activation("relu"))
-    model.add(Dense(1))
+    #model.add(Dense(128))
+    #model.add(Activation("relu"))
+    #model.add(Dense(9))
     #model.add(Nalui2Layer(10, name="hidden1"))
     #model.add(Nalui2Layer(10, name="hidden2"))
     #model.add(Nalui2Layer(10, name="hidden3"))
@@ -104,10 +130,10 @@ if __name__ == "__main__":
 
     if should_train:
         #model.build(x.shape)
-        history = model.fit(train_n_gnds, train_E_gnds, epochs=5, callbacks=[tensorboard_callback])
+        history = model.fit(train_n_gnds, (train_E_gnds, train_vs), epochs=50, callbacks=[tensorboard_callback])
 
         # Test results
-        results = model.evaluate(test_n_gnds, test_E_gnds)
+        results = model.evaluate(test_n_gnds, (test_E_gnds, test_vs))
 
         # Print metrics
         print("=" * 20)
@@ -131,7 +157,7 @@ if __name__ == "__main__":
         model.summary()
 
         # Test results
-        results = model.evaluate(test_n_gnds, test_E_gnds)
+        results = model.evaluate(test_n_gnds, (test_E_gnds, test_vs))
 
         # Print metrics
         print("=" * 20)
